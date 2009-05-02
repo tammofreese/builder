@@ -95,9 +95,9 @@ class Fixnum
   # the CP1252 fix is still applied but utf-8 characters are not
   # converted to character entities.
   def xchr(escape=true)
-    n = CP1252[self] || self
-    case n when *VALID
-      PREDEFINED[n] or (n<128 ? n.chr : (escape ? "&##{n};" : [n].pack('U*')))
+    return CP1252[self].xchr(escape) if CP1252.key?(self)
+    case self when *VALID
+      PREDEFINED[self] or (self<128 ? self.chr : (escape ? "&##{self};" : [self].pack('U*')))
     else
       '*'
     end
