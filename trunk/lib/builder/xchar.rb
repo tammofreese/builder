@@ -87,15 +87,17 @@ end
 # Enhance the Fixnum class with a XML escaped character conversion.
 #
 class Fixnum
-  XChar = Builder::XChar if ! defined?(XChar)
-
+  VALID = Builder::XChar::VALID if ! defined?(VALID)
+  PREDEFINED = Builder::XChar::PREDEFINED if ! defined?(PREDEFINED)
+  CP1252 = Builder::XChar::CP1252 if ! defined?(CP1252)
+  
   # XML escaped version of chr. When <tt>escape</tt> is set to false
   # the CP1252 fix is still applied but utf-8 characters are not
   # converted to character entities.
   def xchr(escape=true)
-    n = XChar::CP1252[self] || self
-    case n when *XChar::VALID
-      XChar::PREDEFINED[n] or (n<128 ? n.chr : (escape ? "&##{n};" : [n].pack('U*')))
+    n = CP1252[self] || self
+    case n when *VALID
+      PREDEFINED[n] or (n<128 ? n.chr : (escape ? "&##{n};" : [n].pack('U*')))
     else
       '*'
     end
