@@ -73,10 +73,11 @@ module Builder
 
     # See http://www.w3.org/TR/REC-xml/#charsets for details.
     VALID = [
-       (0x20..0xD7FF), 
-       (0xE000..0xFFFD),
-       0x9, 0xA, 0xD,
-       (0x10000..0x10FFFF)
+      0x9, 0xA, 0xD,
+      (0x20..0x7F), 
+      (0x80..0xD7FF), 
+      (0xE000..0xFFFD),
+      (0x10000..0x10FFFF)
     ]
   end
 
@@ -87,21 +88,19 @@ end
 # Enhance the Fixnum class with a XML escaped character conversion.
 #
 class Fixnum
-  VALID = Builder::XChar::VALID if ! defined?(VALID)
-  PREDEFINED = Builder::XChar::PREDEFINED if ! defined?(PREDEFINED)
-  CP1252 = Builder::XChar::CP1252 if ! defined?(CP1252)
-  
-  # XML escaped version of chr. When <tt>escape</tt> is set to false
-  # the CP1252 fix is still applied but utf-8 characters are not
-  # converted to character entities.
-  def xchr(escape=true)
-    return CP1252[self].xchr(escape) if CP1252.key?(self)
-    case self when *VALID
-      PREDEFINED[self] or (self<128 ? self.chr : (escape ? "&##{self};" : [self].pack('U*')))
-    else
-      '*'
-    end
-  end
+  # VALID = Builder::XChar::VALID if ! defined?(VALID)
+  # PREDEFINED = Builder::XChar::PREDEFINED if ! defined?(PREDEFINED)
+  # 
+  # # XML escaped version of chr. When <tt>escape</tt> is set to false
+  # # the CP1252 fix is still applied but utf-8 characters are not
+  # # converted to character entities.
+  # def xchr(escape=true)
+  #   case self when *VALID
+  #     PREDEFINED[self] or (self<128 ? self.chr : (escape ? "&##{self};" : [self].pack('U*')))
+  #   else
+  #     '*'
+  #   end
+  # end
 end
 
 
@@ -110,12 +109,31 @@ end
 # to_s.
 #
 class String
+  CP1252 = Builder::XChar::CP1252 if ! defined?(CP1252)
+
+  to_character_class_entry = lambda do |entry|
+    next "#{[entry].pack('U')}" if entry.is_a? Integer
+    next "#{[entry.first].pack('U')}-#{[entry.last].pack('U')}" if entry.is_a? Range
+  end
+  
+  INVALID_UTF8_MATCHER = /[^#{Builder::XChar::VALID.map(&to_character_class_entry).join}]/u
+  NON_ASCII_UTF8_MATCHER = /[#{Builder::XChar::VALID[4..-1].map(&to_character_class_entry).join}]/u
+  PREDEFINED = Builder::XChar::PREDEFINED.inject({}) { |sum, (key, val)| sum[[key].pack('U')] = val; sum }
+  PREDEFINED_UTF_MATCHER = /[#{Builder::XChar::PREDEFINED.keys.map(&to_character_class_entry).join}]/u
+  
   # XML escaped version of to_s. When <tt>escape</tt> is set to false
   # the CP1252 fix is still applied but utf-8 characters are not
   # converted to character entities.
   def to_xs(escape=true)
-    unpack('U*').map {|n| n.xchr(escape)}.join # ASCII, UTF-8
-  rescue
-    unpack('C*').map {|n| n.xchr}.join # ISO-8859-1, WIN-1252
-  end
+    result = begin
+      unpack('U*')
+      dup
+    rescue
+      unpack('C*').map! {|n| CP1252[n] || n }.pack('U*')
+    end
+    result.gsub!(INVALID_UTF8_MATCHER, '*')
+    result.gsub!(PREDEFINED_UTF_MATCHER) { |match| PREDEFINED[match] }
+    result.gsub!(NON_ASCII_UTF8_MATCHER) { |match| "&##{match.unpack('U').first};"} if escape
+    result
+  end  
 end
