@@ -25,14 +25,15 @@ module Builder
       @indent = indent
       @level  = initial
       @encoding = encoding.downcase
+      @escape = @encoding != 'utf-8' or $KCODE != 'UTF8'
     end
     
     # Create a tag named +sym+.  Other than the first argument which
     # is the tag name, the arguments are the same as the tags
     # implemented via <tt>method_missing</tt>.
-    def tag!(sym, *args, &block)
-      method_missing(sym.to_sym, *args, &block)
-    end
+    # def tag!(sym, *args, &block)
+    #   method_missing(sym, *args, &block)
+    # end
 
     # Create XML markup based on the name of the method.  This method
     # is never invoked directly, but is called for each markup method
@@ -75,6 +76,8 @@ module Builder
       end
       @target
     end
+    
+    alias_method :tag!, :method_missing
 
     # Append text to the output target.  Escape any markup.  May be
     # used within the markup brackets as:
@@ -114,8 +117,8 @@ module Builder
     private
     
     require 'builder/xchar'
-    def _escape(text)
-      text.to_xs((@encoding != 'utf-8' or $KCODE != 'UTF8'))
+    def _escape(text)      
+      text.to_xs(@escape)
     end
 
     def _escape_quote(text)
