@@ -25,7 +25,6 @@ module Builder
       @indent = indent
       @level  = initial
       @encoding = encoding.downcase
-      @escape = @encoding != 'utf-8' or $KCODE != 'UTF8'
     end
     
     # Create a tag named +sym+.  Other than the first argument which
@@ -117,7 +116,8 @@ module Builder
     private
     
     require 'builder/xchar'
-    def _escape(text)      
+    def _escape(text)
+      @escape = (@encoding != 'utf-8') || ($KCODE != 'UTF8') if @escape == nil      
       text.to_xs(@escape)
     end
 
